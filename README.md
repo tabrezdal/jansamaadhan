@@ -60,15 +60,51 @@ jansamaadhan/
 
 ---
 
+### Auth module (this release)
+
+| File | Purpose |
+|------|---------|
+| `app/(auth)/layout.tsx` | Split-panel layout — brand left, form right |
+| `app/(auth)/register/page.tsx` | Mobile number entry → sends OTP |
+| `app/(auth)/register/verify/page.tsx` | 6-box OTP entry, auto-advance, resend timer |
+| `app/(auth)/login/page.tsx` | Login via OTP (same verify flow) |
+| `app/onboarding/page.tsx` | 3-step post-registration: profession → state → done |
+| `components/auth/OTPInput.tsx` | Reusable 6-digit OTP box component |
+| `components/auth/PhoneInput.tsx` | Indian phone field with +91 prefix, validation |
+| `components/auth/ResendTimer.tsx` | Countdown timer + resend + WhatsApp fallback |
+| `hooks/useAuth.ts` | Shared auth hook (send OTP, verify OTP, state) |
+| `middleware.ts` | Route protection — redirects unauthenticated users |
+| `app/api/auth/send-otp/route.ts` | Server: rate-limited OTP dispatch (Msg91 / Twilio) |
+| `app/api/auth/verify-otp/route.ts` | Server: verify OTP → set httpOnly session cookie |
+| `app/api/auth/logout/route.ts` | Server: clear session cookie |
+
+### OTP providers — plug in one
+
+```bash
+# Msg91 (recommended for India, cheapest)
+MSG91_AUTH_KEY=...
+MSG91_OTP_TEMPLATE_ID=...
+
+# Twilio Verify (global, reliable)
+TWILIO_ACCOUNT_SID=...
+TWILIO_AUTH_TOKEN=...
+TWILIO_VERIFY_SID=...
+```
+
+Uncomment the relevant block in `app/api/auth/send-otp/route.ts` and `verify-otp/route.ts`.
+
+**Dev mode OTP:** any 6-digit code except `000000` is accepted. Console prints `[DEV] OTP for XXXXXXXXXX: 123456`.
+
+---
+
 ### Next Pages to Build
 
 | Page                | Route              | Priority |
 |---------------------|--------------------|----------|
-| Services listing    | `/services`        | P1 next  |
-| User dashboard      | `/dashboard`       | P1       |
+| User dashboard      | `/dashboard`       | P1 next  |
+| Services listing    | `/services`        | P1       |
 | Order flow          | `/order/[service]` | P1       |
 | CA portal           | `/ca-portal`       | P2       |
-| Login / Register    | `/login`, `/register` | P1    |
 
 ---
 

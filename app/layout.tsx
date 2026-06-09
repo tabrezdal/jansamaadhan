@@ -10,7 +10,7 @@ const notoSerif = Noto_Serif({
 })
 
 const notoSans = Noto_Sans({
-  subsets: ['latin', 'devanagari'],
+  subsets: ['latin'],
   variable: '--font-body',
   weight: ['300', '400', '500', '600'],
   display: 'swap',
