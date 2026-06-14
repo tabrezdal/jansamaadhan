@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
     attempts.set(phone, {
       count:   (rec && rec.resetAt > now ? rec.count : 0) + 1,
-      resetAt: rec?.resetAt > now ? rec.resetAt : now + 3_600_000,
+      resetAt: (rec && rec.resetAt > now) ? rec.resetAt : now + 3_600_000,
     })
 
     // ── Msg91 integration (uncomment + add env vars) ──────────────
