@@ -4,13 +4,13 @@ import { NextRequest, NextResponse } from 'next/server'
  * Next.js middleware — runs on every matched route before rendering.
  *
  * Protected routes (require session cookie):
- *   /dashboard, /order/*, /profile, /documents
+ *   /dashboard, /order/*, /profile, /documents, /onboarding, /ca-portal
  *
  * Auth routes (redirect to dashboard if already logged in):
  *   /login, /register
  */
 
-const PROTECTED = ['/dashboard', '/order', '/profile', '/documents', '/onboarding']
+const PROTECTED = ['/dashboard', '/order', '/profile', '/documents', '/onboarding', '/ca-portal']
 const AUTH_ONLY  = ['/login', '/register']
 
 export function middleware(req: NextRequest) {
@@ -45,6 +45,7 @@ export const config = {
     '/profile/:path*',
     '/documents/:path*',
     '/onboarding/:path*',
+    '/ca-portal/:path*',
     '/login',
     '/register',
   ],
