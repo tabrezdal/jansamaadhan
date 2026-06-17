@@ -52,7 +52,7 @@ export default function HeroSection() {
       ))}
 
       {/* Main content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center pb-20 sm:pb-24">
 
         {/* Hindi eyebrow */}
         <div className="anim-init animate-fade-up delay-100 inline-flex items-center gap-2 mb-6">
