@@ -26,7 +26,7 @@ const FOOTER_LINKS = {
     { label: 'About Us', href: '/about' },
     { label: 'Careers', href: '/careers' },
     { label: 'Blog', href: '/blog' },
-    { label: 'Partner / CA Portal', href: '/ca-portal' },
+    { label: 'Partner with us (CA)', href: '/ca-register' },
     { label: 'Contact Us', href: '/contact' },
   ],
   'Legal': [

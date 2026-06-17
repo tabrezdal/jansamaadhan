@@ -11,17 +11,18 @@ const RESEND_SECONDS = 30
 
 // Inner component uses useSearchParams — must be wrapped in Suspense
 function VerifyOTPInner() {
-  const router       = useRouter()
-  const params       = useSearchParams()
-  const phone        = params.get('phone') ?? ''
-  const flow         = params.get('flow') ?? 'register'
+  const router = useRouter()
+  const params = useSearchParams()
+  const phone = params.get('phone') ?? ''
+  const flow = params.get('flow') ?? 'register'
+  const role = params.get('role') === 'ca' ? 'ca' : 'customer'
 
-  const [otp,      setOtp]      = useState<string[]>(Array(OTP_LENGTH).fill(''))
-  const [error,    setError]    = useState('')
-  const [loading,  setLoading]  = useState(false)
+  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''))
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const [verified, setVerified] = useState(false)
-  const [resendSec,setResendSec]= useState(RESEND_SECONDS)
-  const [resending,setResending]= useState(false)
+  const [resendSec, setResendSec] = useState(RESEND_SECONDS)
+  const [resending, setResending] = useState(false)
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
@@ -33,7 +34,7 @@ function VerifyOTPInner() {
 
   useEffect(() => {
     if (otp.every(d => d !== '')) handleVerify()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [otp])
 
   function handleChange(index: number, value: string) {
@@ -53,7 +54,7 @@ function VerifyOTPInner() {
         inputRefs.current[index - 1]?.focus()
       }
     }
-    if (e.key === 'ArrowLeft'  && index > 0)              inputRefs.current[index - 1]?.focus()
+    if (e.key === 'ArrowLeft' && index > 0) inputRefs.current[index - 1]?.focus()
     if (e.key === 'ArrowRight' && index < OTP_LENGTH - 1) inputRefs.current[index + 1]?.focus()
   }
 
@@ -72,19 +73,42 @@ function VerifyOTPInner() {
     if (code.length < OTP_LENGTH) return
     setLoading(true)
     setError('')
-    await new Promise(r => setTimeout(r, 1000))
-    if (code === '000000') {
-      setError('Invalid OTP. Please try again.')
+
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, code, role }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error ?? 'Invalid OTP. Please try again.')
+        setLoading(false)
+        setOtp(Array(OTP_LENGTH).fill(''))
+        inputRefs.current[0]?.focus()
+        return
+      }
+
+      setLoading(false)
+      setVerified(true)
+      await new Promise(r => setTimeout(r, 1200))
+
+      if (flow === 'login') {
+        router.push(role === 'ca' ? '/ca-portal' : '/dashboard')
+      } else if (flow === 'ca-register') {
+        // CA onboarding is just name + ICAI, already collected on the sign-up form
+        router.push('/ca-portal')
+      } else {
+        router.push('/onboarding')
+      }
+    } catch {
+      setError('Something went wrong. Please try again.')
       setLoading(false)
       setOtp(Array(OTP_LENGTH).fill(''))
       inputRefs.current[0]?.focus()
-      return
     }
-    setLoading(false)
-    setVerified(true)
-    await new Promise(r => setTimeout(r, 1200))
-    router.push(flow === 'login' ? '/dashboard' : '/onboarding')
-  }, [otp, flow, router])
+  }, [otp, flow, role, phone, router])
 
   async function handleResend() {
     setResending(true)
@@ -104,11 +128,15 @@ function VerifyOTPInner() {
         </div>
         <h2 className="font-display text-2xl font-bold text-brand-ink mb-2">Verified! ✓</h2>
         <p className="text-gray-500 text-sm">
-          {flow === 'login' ? 'Logging you in…' : 'Setting up your account…'}
-        </p>
+          {flow === 'login'
+            ? 'Logging you in…'
+            : flow === 'ca-register'
+              ? 'Setting up your CA portal…'
+              : 'Setting up your account…'}
+        </p>        
         <div className="mt-6 flex justify-center">
           <div className="flex gap-1.5">
-            {[0,1,2].map(i => (
+            {[0, 1, 2].map(i => (
               <div key={i} className="w-2 h-2 rounded-full bg-brand-teal animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
             ))}
           </div>

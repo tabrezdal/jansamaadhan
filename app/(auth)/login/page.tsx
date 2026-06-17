@@ -5,8 +5,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
 
+type LoginRole = 'customer' | 'ca'
+
 export default function LoginPage() {
   const router    = useRouter()
+  const [role,    setRole]    = useState<LoginRole>('customer')
   const [phone,   setPhone]   = useState('')
   const [error,   setError]   = useState('')
   const [loading, setLoading] = useState(false)
@@ -29,7 +32,7 @@ export default function LoginPage() {
     setLoading(true)
     await new Promise(r => setTimeout(r, 900))
     setLoading(false)
-    router.push(`/register/verify?phone=${phone}&flow=login`)
+    router.push(`/register/verify?phone=${phone}&flow=login&role=${role}`)
   }
 
   return (
@@ -47,6 +50,26 @@ export default function LoginPage() {
       <div className="inline-flex items-center gap-2 bg-amber-50 border border-brand-amber/20 px-3 py-1.5 rounded-full mb-5">
         <span className="text-base">👋</span>
         <span className="text-xs font-medium text-amber-700">Wapas aaye! Welcome back.</span>
+      </div>
+
+      {/* Role toggle */}
+      <div className="flex gap-2 mb-6 bg-gray-100 rounded-2xl p-1">
+        <button
+          type="button"
+          onClick={() => setRole('customer')}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all
+            ${role === 'customer' ? 'bg-white text-brand-teal shadow-sm' : 'text-gray-500'}`}
+        >
+          Customer
+        </button>
+        <button
+          type="button"
+          onClick={() => setRole('ca')}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all
+            ${role === 'ca' ? 'bg-white text-brand-teal shadow-sm' : 'text-gray-500'}`}
+        >
+          CA Professional
+        </button>
       </div>
 
       {/* Heading */}
@@ -150,6 +173,25 @@ export default function LoginPage() {
         <Link href="/register" className="text-brand-teal font-semibold hover:underline">
           Create free account
         </Link>
+      </p>
+
+      {/* Register link */}
+      <p className="text-center text-sm text-gray-500 mt-6">
+        {role === 'ca' ? (
+          <>
+            New CA partner?{' '}
+            <Link href="/ca-register" className="text-brand-teal font-semibold hover:underline">
+              Sign up as a CA
+            </Link>
+          </>
+        ) : (
+          <>
+            New to JanSamaadhan?{' '}
+            <Link href="/register" className="text-brand-teal font-semibold hover:underline">
+              Create free account
+            </Link>
+          </>
+        )}
       </p>
 
       {/* Service quick links */}

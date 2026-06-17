@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { encodeSession, COOKIE_NAME, type UserRole } from '@/lib/session'
+
 
 /**
  * POST /api/auth/verify-otp
- * Body: { phone: string, code: string }
+ * Body: { phone: string, code: string, role?: 'customer' | 'ca' }
  *
- * On success: sets an httpOnly session cookie and returns { success, isNewUser }
+ * On success: sets an httpOnly session cookie (encoding role + phone)
+ * and returns { success, isNewUser }
  *
  * Production checklist:
  *  1. Replace mock verify with real provider (Msg91 / Twilio Verify)
  *  2. Generate a signed JWT or use NextAuth / Iron Session
- *  3. Store user in DB (PostgreSQL via Prisma / Drizzle)
+ *  3. Store user in DB (PostgreSQL via Prisma / Drizzle) — including role
  *  4. Return isNewUser flag so frontend can redirect to /onboarding vs /dashboard
  */
 
@@ -21,6 +24,7 @@ export async function POST(req: NextRequest) {
     const body  = await req.json()
     const phone = String(body.phone ?? '').replace(/\D/g, '')
     const code  = String(body.code  ?? '').replace(/\D/g, '')
+    const role: UserRole = body.role === 'ca' ? 'ca' : 'customer'
 
     // Basic validation
     if (!phone || phone.length !== 10) {
@@ -76,8 +80,8 @@ export async function POST(req: NextRequest) {
     // ─────────────────────────────────────────────────────────────
 
     // Set a simple demo cookie (replace with signed JWT in prod)
-    const res = NextResponse.json({ success: true, isNewUser })
-    res.cookies.set('js_session', `demo_${phone}`, {
+    const res = NextResponse.json({ success: true, isNewUser, role })
+    res.cookies.set(COOKIE_NAME, encodeSession(role, phone), {
       httpOnly: true,
       secure:   process.env.NODE_ENV === 'production',
       sameSite: 'lax',
