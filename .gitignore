@@ -64,3 +64,4 @@ pnpm-lock.yaml
 # generated folders
 /public/build
 /public/uploads
+.env*
