@@ -14,24 +14,14 @@ const TRUST_POINTS = [
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    // h-screen + overflow-hidden on the outer shell, with each panel scrolling
-    // independently — this guarantees the form panel is always reachable via
-    // scroll on short viewports instead of being clipped below the fold.
     <div className="h-screen flex overflow-hidden">
 
-      {/* ── Left panel — brand (scrolls independently if needed) ── */}
+      {/* Left panel */}
       <div className="hidden lg:flex lg:w-[40%] xl:w-[38%] flex-col justify-between bg-brand-teal relative overflow-y-auto p-8 xl:p-10">
-
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full bg-white/5 blur-3xl" />
           <div className="absolute -bottom-32 -right-32 w-[400px] h-[400px] rounded-full bg-brand-amber/10 blur-3xl" />
-          <div
-            className="absolute inset-0 opacity-[0.04]"
-            style={{
-              backgroundImage: 'radial-gradient(circle, white 1.5px, transparent 1.5px)',
-              backgroundSize: '40px 40px',
-            }}
-          />
+          <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, white 1.5px, transparent 1.5px)', backgroundSize: '40px 40px' }} />
         </div>
 
         <Link href="/" className="relative z-10 flex items-center gap-3 group w-fit flex-shrink-0">
@@ -39,25 +29,19 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <span className="text-white font-display font-bold text-lg leading-none">ज</span>
           </div>
           <div>
-            <div className="font-display font-bold text-white text-lg leading-none">
-              Jan<span className="text-brand-amber">Samaadhan</span>
-            </div>
+            <div className="font-display font-bold text-white text-lg leading-none">Jan<span className="text-brand-amber">Samaadhan</span></div>
             <div className="text-[10px] text-white/40 mt-0.5">जन समाधान</div>
           </div>
         </Link>
 
         <div className="relative z-10 py-6">
-          <p className="text-white/50 text-xs font-medium mb-3 uppercase tracking-widest">
-            Trusted by 10,000+ Indians
-          </p>
+          <p className="text-white/50 text-xs font-medium mb-3 uppercase tracking-widest">Trusted by 10,000+ Indians</p>
           <h2 className="font-display text-2xl xl:text-3xl font-bold text-white leading-snug mb-4">
-            आपकी सेवा,<br />
-            <span className="text-brand-amber">आपका हक।</span>
+            आपकी सेवा,<br /><span className="text-brand-amber">आपका हक।</span>
           </h2>
           <p className="text-white/60 text-sm leading-relaxed max-w-xs mb-6">
             Tax filing, PAN, Aadhaar, GST and 90+ government services — all at 70% less than local agents.
           </p>
-
           <div className="space-y-2.5">
             {TRUST_POINTS.map(({ emoji, text }) => (
               <div key={text} className="flex items-center gap-3">
@@ -71,10 +55,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <p className="relative z-10 text-white/25 text-[11px] flex-shrink-0">© 2026 JanSamaadhan</p>
       </div>
 
-      {/* ── Right panel — form (always independently scrollable) ── */}
+      {/* Right panel — independently scrollable */}
       <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-[#FAFBFC]">
-        {/* Mobile logo — sticky so it's always visible while scrolling on small screens */}
-        <div className="lg:hidden flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-white flex-shrink-0 sticky top-0 z-10">
+
+        {/* Mobile logo */}
+        <div className="lg:hidden flex items-center px-5 py-3 border-b border-gray-100 bg-white flex-shrink-0 sticky top-0 z-10">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-brand-teal flex items-center justify-center">
               <span className="text-white font-display font-bold text-sm leading-none">ज</span>
@@ -83,7 +68,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </Link>
         </div>
 
-        {/* Form content */}
+        {/* Form */}
         <div className="flex-1 flex items-start lg:items-center justify-center px-5 py-6 lg:py-8">
           <div className="w-full max-w-md">
             {children}
