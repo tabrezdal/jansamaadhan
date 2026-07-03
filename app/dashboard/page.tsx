@@ -2,53 +2,38 @@ import Link from 'next/link'
 import {
   ArrowRight, FileText, Clock, CheckCircle,
   Plus, Download, MessageCircle,
-  AlertCircle, Zap, IndianRupee
+  AlertCircle, Zap, IndianRupee,
 } from 'lucide-react'
-
-const USER = { name: 'Ramesh Kumar', phone: '+91 98765 43210', state: 'Gujarat' }
-
-const STATS = [
-  { label: 'Active Orders',    value: '2',      sub: '1 in progress',       icon: Clock,        color: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-100' },
-  { label: 'Completed',        value: '7',      sub: 'since joining',        icon: CheckCircle,  color: 'text-green-600',  bg: 'bg-green-50',  border: 'border-green-100' },
-  { label: 'Saved vs Agents',  value: '₹6,840', sub: 'total savings',        icon: IndianRupee,  color: 'text-amber-600',  bg: 'bg-amber-50',  border: 'border-amber-100' },
-  { label: 'Documents Stored', value: '12',     sub: 'encrypted, lifetime',  icon: FileText,     color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
-]
-
-const ACTIVE_ORDERS = [
-  {
-    id: 'ORD-2026-001', service: 'ITR-2 Filing',    status: 'in_progress',  ca: 'CA Priya Mehta',
-    caRating: 4.9, price: '₹299', ordered: '12 Jun 2026', eta: '14 Jun 2026',
-    progress: 65, docs: 3, docsReady: 3,
-  },
-  {
-    id: 'ORD-2026-002', service: 'GST Registration', status: 'docs_pending', ca: 'CA Suresh Patel',
-    caRating: 4.8, price: '₹499', ordered: '13 Jun 2026', eta: '15 Jun 2026',
-    progress: 25, docs: 4, docsReady: 2,
-  },
-]
-
-const COMPLETED = [
-  { id: 'ORD-2026-000', service: 'ITR-1 Filing',     price: '₹99',  date: '10 May 2026' },
-  { id: 'ORD-2026-019', service: 'PAN-Aadhaar Link', price: '₹49',  date: '2 Apr 2026' },
-  { id: 'ORD-2026-018', service: 'Rent Agreement',   price: '₹299', date: '18 Mar 2026' },
-]
+import {
+  getCurrentUser, getActiveOrders, getCompletedOrders,
+  getStatusConfig, calculateSavings,
+} from '@/lib/auth'
 
 const QUICK_ACTIONS = [
   { label: 'File ITR-1',       sub: '₹99 · 24 hrs',  href: '/order/itr-1',            emoji: '📄' },
   { label: 'Link PAN+Aadhaar', sub: '₹49 · 1 hr',   href: '/order/pan-aadhaar-link', emoji: '🔗' },
-  { label: 'Update Aadhaar',   sub: '₹99 · 2 hrs',  href: '/order/aadhaar-update',   emoji: '🪪' },
+  { label: 'Update Aadhaar',   sub: '₹99 · 2 hrs',  href: '/order/aadhaar-address',  emoji: '🪪' },
   { label: 'GST Registration', sub: '₹499 · 6 hrs', href: '/order/gst-registration', emoji: '🏢' },
   { label: 'Rent Agreement',   sub: '₹299 · 2 hrs', href: '/order/rent-agreement',   emoji: '📋' },
   { label: 'MSME / Udyam',     sub: '₹299 · 2 hrs', href: '/order/msme',             emoji: '🏭' },
 ]
 
-const STATUS: Record<string, { color: string; bg: string; dot: string; label: string }> = {
-  in_progress:  { color: 'text-blue-700',  bg: 'bg-blue-50 border-blue-200',  dot: 'bg-blue-500',  label: 'In Progress' },
-  docs_pending: { color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', dot: 'bg-amber-500', label: 'Docs Pending' },
-  completed:    { color: 'text-green-700', bg: 'bg-green-50 border-green-200', dot: 'bg-green-500', label: 'Completed' },
-}
+export default async function DashboardPage() {
+  const user           = await getCurrentUser()
+  const activeOrders   = await getActiveOrders(user.id)
+  const completedOrders = await getCompletedOrders(user.id)
+  const savings        = calculateSavings(completedOrders)
 
-export default function DashboardPage() {
+  const stats = [
+    { label: 'Active Orders',    value: String(activeOrders.length),   sub: 'in progress',          icon: Clock,        color: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-100' },
+    { label: 'Completed',        value: String(completedOrders.length), sub: 'since joining',        icon: CheckCircle,  color: 'text-green-600',  bg: 'bg-green-50',  border: 'border-green-100' },
+    { label: 'Saved vs Agents',  value: savings > 0 ? `₹${savings.toLocaleString('en-IN')}` : '—', sub: 'total savings', icon: IndianRupee, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
+    { label: 'Documents Stored', value: String(activeOrders.reduce((n, o) => n + o.documents.length, 0) + completedOrders.reduce((n, o) => n + o.documents.length, 0)), sub: 'in your vault', icon: FileText, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
+  ]
+
+  const displayName = user.name ?? `+91 ${user.phone.slice(0, 5)} ${user.phone.slice(5)}`
+  const initials    = (user.name ?? user.phone).slice(0, 1).toUpperCase()
+
   return (
     <div className="space-y-6">
 
@@ -56,9 +41,11 @@ export default function DashboardPage() {
       <div className="rounded-2xl bg-gradient-to-r from-brand-teal to-brand-teal2 p-5 sm:p-6 flex items-center justify-between gap-4 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, white 1.5px, transparent 1.5px)', backgroundSize: '28px 28px' }} />
         <div className="relative z-10">
-          <p className="text-white/60 text-sm">Good morning</p>
-          <h2 className="font-display font-bold text-white text-xl sm:text-2xl">{USER.name}</h2>
-          <p className="text-white/50 text-xs mt-0.5">{USER.state} · {USER.phone}</p>
+          <p className="text-white/60 text-sm">Welcome back 👋</p>
+          <h2 className="font-display font-bold text-white text-xl sm:text-2xl">{displayName}</h2>
+          <p className="text-white/50 text-xs mt-0.5">
+            {user.state ? `${user.state} · ` : ''} +91 {user.phone}
+          </p>
         </div>
         <Link href="/services" className="relative z-10 flex-shrink-0 flex items-center gap-2 px-5 py-2.5 bg-brand-amber text-white text-sm font-semibold rounded-xl hover:bg-brand-amber2 transition-all shadow-md hover:-translate-y-0.5">
           <Plus size={15} /> New Service
@@ -67,7 +54,7 @@ export default function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {STATS.map(s => {
+        {stats.map(s => {
           const Icon = s.icon
           return (
             <div key={s.label} className={`bg-white rounded-2xl border ${s.border} p-4 flex items-start gap-3`}>
@@ -84,7 +71,7 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {/* Deadline alert */}
+      {/* ITR deadline alert */}
       <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5 flex items-center gap-3">
         <AlertCircle size={16} className="text-amber-600 flex-shrink-0" />
         <div className="flex-1">
@@ -104,63 +91,83 @@ export default function DashboardPage() {
             <Link href="/dashboard/orders" className="text-xs text-brand-teal font-medium hover:underline flex items-center gap-1">View all <ArrowRight size={12} /></Link>
           </div>
 
-          {ACTIVE_ORDERS.map(order => {
-            const st = STATUS[order.status]
-            return (
-              <div key={order.id} className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 hover:border-brand-teal/30 hover:shadow-sm transition-all">
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div>
-                    <div className="font-semibold text-gray-800 text-sm">{order.service}</div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">{order.id} · {order.ordered}</div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${st.bg} ${st.color}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${st.dot} ${order.status === 'in_progress' ? 'animate-pulse' : ''}`} />
-                      {st.label}
-                    </span>
-                    <span className="font-semibold text-brand-teal text-sm">{order.price}</span>
-                  </div>
-                </div>
+          {activeOrders.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-10 text-center">
+              <div className="text-3xl mb-3">📋</div>
+              <p className="text-sm font-medium text-gray-600 mb-1">No active orders</p>
+              <p className="text-xs text-gray-400 mb-4">Start a new service to see it here.</p>
+              <Link href="/services" className="text-sm font-semibold text-brand-teal hover:underline">Browse services →</Link>
+            </div>
+          ) : (
+            activeOrders.map(order => {
+              const st          = getStatusConfig(order.status)
+              const uploadedDocs = order.documents.filter(d => d.status === 'UPLOADED').length
+              const totalDocs    = order.documents.length
+              const caName       = order.ca?.user.name ?? 'CA being assigned'
+              const caInitial    = (order.ca?.user.name ?? 'C').replace('CA ', '')[0]
 
-                {/* Progress */}
-                <div className="mb-3">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-[11px] text-gray-400">Progress</span>
-                    <span className="text-[11px] font-medium text-gray-600">{order.progress}%</span>
-                  </div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-brand-teal to-blue-400 rounded-full transition-all duration-700" style={{ width: `${order.progress}%` }} />
-                  </div>
-                </div>
-
-                {/* CA + docs */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-brand-teal/10 flex items-center justify-center text-brand-teal font-bold text-[10px]">
-                      {order.ca.replace('CA ', '')[0]}
+              return (
+                <div key={order.id} className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 hover:border-brand-teal/30 hover:shadow-sm transition-all">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                      <div className="font-semibold text-gray-800 text-sm">{order.serviceSnapshot.name}</div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">{order.orderNumber} · {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                     </div>
-                    <span className="text-xs text-gray-600">{order.ca}</span>
-                    <span className="text-[10px] text-amber-500 font-semibold">★ {order.caRating}</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${st.bg} ${st.color}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${st.dot} ${order.status === 'IN_PROGRESS' ? 'animate-pulse' : ''}`} />
+                        {st.label}
+                      </span>
+                      <span className="font-semibold text-brand-teal text-sm">₹{order.serviceSnapshot.price}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-[11px] font-medium ${order.docsReady < order.docs ? 'text-amber-600' : 'text-green-600'}`}>
-                      {order.docsReady}/{order.docs} docs
-                    </span>
-                    <span className="text-[11px] text-gray-400">ETA {order.eta}</span>
-                  </div>
-                </div>
 
-                {order.status === 'docs_pending' && (
-                  <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-                    <span className="text-xs text-amber-700 flex items-center gap-1.5">
-                      <AlertCircle size={12} /> Upload remaining documents to proceed
-                    </span>
-                    <Link href={`/dashboard/orders/${order.id}`} className="text-xs font-semibold text-brand-teal hover:underline">Upload →</Link>
+                  {/* Progress */}
+                  <div className="mb-3">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-[11px] text-gray-400">Progress</span>
+                      <span className="text-[11px] font-medium text-gray-600">{st.progress}%</span>
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-brand-teal to-blue-400 rounded-full transition-all duration-700" style={{ width: `${st.progress}%` }} />
+                    </div>
                   </div>
-                )}
-              </div>
-            )
-          })}
+
+                  {/* CA + docs */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-brand-teal/10 flex items-center justify-center text-brand-teal font-bold text-[10px]">
+                        {caInitial}
+                      </div>
+                      <span className="text-xs text-gray-600">{caName}</span>
+                      {order.ca && <span className="text-[10px] text-amber-500 font-semibold">★ {Number(order.ca.rating).toFixed(1)}</span>}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {totalDocs > 0 && (
+                        <span className={`text-[11px] font-medium ${uploadedDocs < totalDocs ? 'text-amber-600' : 'text-green-600'}`}>
+                          {uploadedDocs}/{totalDocs} docs
+                        </span>
+                      )}
+                      {order.dueBy && (
+                        <span className="text-[11px] text-gray-400">
+                          ETA {new Date(order.dueBy).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {order.status === 'DOCS_REQUESTED' && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                      <span className="text-xs text-amber-700 flex items-center gap-1.5">
+                        <AlertCircle size={12} /> Your CA needs more documents
+                      </span>
+                      <Link href="/dashboard/documents" className="text-xs font-semibold text-brand-teal hover:underline">Upload →</Link>
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          )}
         </div>
 
         {/* Quick actions */}
@@ -183,7 +190,7 @@ export default function DashboardPage() {
             ))}
             <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
               <Link href="/services" className="text-xs font-semibold text-brand-teal flex items-center gap-1 hover:underline">
-                View all 95 services <ArrowRight size={11} />
+                View all 95+ services <ArrowRight size={11} />
               </Link>
             </div>
           </div>
@@ -191,31 +198,35 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent completed */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-gray-800 text-sm">Recently Completed</h3>
-          <Link href="/dashboard/orders?tab=completed" className="text-xs text-brand-teal font-medium hover:underline flex items-center gap-1">View all <ArrowRight size={12} /></Link>
+      {completedOrders.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-800 text-sm">Recently Completed</h3>
+            <Link href="/dashboard/orders" className="text-xs text-brand-teal font-medium hover:underline flex items-center gap-1">View all <ArrowRight size={12} /></Link>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            {completedOrders.slice(0, 3).map((o, i) => (
+              <div key={o.id} className={`flex items-center gap-4 px-4 sm:px-5 py-3.5 hover:bg-gray-50 transition-colors ${i < Math.min(completedOrders.length, 3) - 1 ? 'border-b border-gray-50' : ''}`}>
+                <div className="w-8 h-8 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle size={15} className="text-green-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-gray-700 truncate">{o.serviceSnapshot.name}</div>
+                  <div className="text-[11px] text-gray-400">
+                    {new Date(o.completedAt ?? o.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · {o.orderNumber}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <span className="text-sm font-semibold text-brand-teal">₹{o.serviceSnapshot.price}</span>
+                  <button className="p-1.5 rounded-lg text-gray-400 hover:text-brand-teal hover:bg-brand-surface transition-all" title="Download">
+                    <Download size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          {COMPLETED.map((o, i) => (
-            <div key={o.id} className={`flex items-center gap-4 px-4 sm:px-5 py-3.5 hover:bg-gray-50 transition-colors ${i < COMPLETED.length - 1 ? 'border-b border-gray-50' : ''}`}>
-              <div className="w-8 h-8 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
-                <CheckCircle size={15} className="text-green-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-gray-700 truncate">{o.service}</div>
-                <div className="text-[11px] text-gray-400">{o.date} · {o.id}</div>
-              </div>
-              <div className="flex items-center gap-3 flex-shrink-0">
-                <span className="text-sm font-semibold text-brand-teal">{o.price}</span>
-                <button className="p-1.5 rounded-lg text-gray-400 hover:text-brand-teal hover:bg-brand-surface transition-all" title="Download">
-                  <Download size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* Support nudge */}
       <div className="rounded-2xl border border-gray-100 bg-white p-5 flex items-center justify-between gap-4">
