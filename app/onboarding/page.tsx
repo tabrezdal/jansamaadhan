@@ -2,40 +2,70 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle, ArrowRight, User, MapPin, Briefcase } from 'lucide-react'
+import { CheckCircle, ArrowRight, MapPin, Briefcase, User } from 'lucide-react'
 
 const PROFESSIONS = [
-  { id: 'salaried',    label: 'Salaried Employee',    emoji: '👨‍💼', desc: 'Working in company / govt job' },
-  { id: 'business',   label: 'Business Owner',        emoji: '🏪', desc: 'Shop, MSME, trading, etc.' },
+  { id: 'salaried',    label: 'Salaried Employee',       emoji: '👨‍💼', desc: 'Working in company / govt job' },
+  { id: 'business',   label: 'Business Owner',           emoji: '🏪', desc: 'Shop, MSME, trading, etc.' },
   { id: 'freelancer', label: 'Freelancer / Professional', emoji: '💻', desc: 'Consultants, doctors, architects' },
-  { id: 'farmer',     label: 'Farmer / Agri',         emoji: '👨‍🌾', desc: 'Agricultural income' },
-  { id: 'gig',        label: 'Gig Worker',            emoji: '🚗', desc: 'Ola, Swiggy, Zomato, etc.' },
-  { id: 'other',      label: 'Other / Student',       emoji: '🎓', desc: 'NRI, housewife, retired, etc.' },
+  { id: 'farmer',     label: 'Farmer / Agri',            emoji: '👨‍🌾', desc: 'Agricultural income' },
+  { id: 'gig',        label: 'Gig Worker',               emoji: '🚗', desc: 'Ola, Swiggy, Zomato, etc.' },
+  { id: 'other',      label: 'Other / Student',          emoji: '🎓', desc: 'NRI, housewife, retired, etc.' },
 ]
 
 const STATES = [
-  'Gujarat','Maharashtra','Rajasthan','Uttar Pradesh','Madhya Pradesh',
-  'Karnataka','Tamil Nadu','Delhi','West Bengal','Bihar',
-  'Andhra Pradesh','Telangana','Kerala','Punjab','Haryana',
-  'Odisha','Chhattisgarh','Jharkhand','Assam','Other',
+  'Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat',
+  'Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh',
+  'Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab',
+  'Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh',
+  'Uttarakhand','West Bengal','Delhi','Jammu & Kashmir','Ladakh','Puducherry',
 ]
 
+const QUICK_STATES = ['Gujarat','Maharashtra','Rajasthan','Delhi','Karnataka','UP']
+
 const STEPS = [
-  { id: 1, label: 'Profession', icon: Briefcase },
-  { id: 2, label: 'Location',   icon: MapPin },
-  { id: 3, label: 'Done!',      icon: CheckCircle },
+  { id: 1, label: 'About you', icon: User },
+  { id: 2, label: 'Location',  icon: MapPin },
+  { id: 3, label: 'Done!',     icon: CheckCircle },
 ]
 
 export default function OnboardingPage() {
-  const router      = useRouter()
-  const [step,      setStep]      = useState(1)
-  const [profession,setProfession]= useState('')
-  const [state,     setState]     = useState('')
-  const [loading,   setLoading]   = useState(false)
+  const router        = useRouter()
+  const [step,        setStep]       = useState(1)
+  const [name,        setName]       = useState('')
+  const [profession,  setProfession] = useState('')
+  const [state,       setState]      = useState('')
+  const [loading,     setLoading]    = useState(false)
+  const [error,       setError]      = useState('')
 
   async function handleFinish() {
+    if (!state) return
     setLoading(true)
-    await new Promise(r => setTimeout(r, 1000))
+    setError('')
+
+    try {
+      const res = await fetch('/api/profile', {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name:       name.trim() || undefined,
+          state,
+          profession,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error ?? 'Failed to save. Please try again.')
+        setLoading(false)
+        return
+      }
+    } catch {
+      setError('Something went wrong. Please try again.')
+      setLoading(false)
+      return
+    }
+
     setLoading(false)
     setStep(3)
     await new Promise(r => setTimeout(r, 1500))
@@ -61,55 +91,77 @@ export default function OnboardingPage() {
                 >
                   {done ? <CheckCircle size={17} /> : <Icon size={16} />}
                 </div>
-                <span className={`text-[10px] font-medium hidden sm:block transition-colors ${current ? 'text-brand-teal' : done ? 'text-brand-green' : 'text-gray-400'}`}>
+                <span className={`text-[10px] font-medium hidden sm:block transition-colors
+                  ${current ? 'text-brand-teal' : done ? 'text-brand-green' : 'text-gray-400'}`}>
                   {s.label}
                 </span>
               </div>
               {!last && (
-                <div className={`flex-1 h-px mx-2 mt-[-18px] sm:mt-[-22px] transition-colors ${done ? 'bg-brand-green' : 'bg-gray-200'}`} />
+                <div className={`flex-1 h-px mx-2 mt-[-18px] sm:mt-[-22px] transition-colors
+                  ${done ? 'bg-brand-green' : 'bg-gray-200'}`} />
               )}
             </div>
           )
         })}
       </div>
 
-      {/* ── Step 1: Profession ── */}
+      {/* ── Step 1: Name + Profession ── */}
       {step === 1 && (
         <div>
           <div className="mb-6">
             <h1 className="font-display text-2xl font-bold text-brand-ink mb-1">
-              What best describes you?
+              Tell us about yourself
             </h1>
             <p className="text-gray-500 text-sm">
-              We'll personalise your service recommendations. Takes 30 seconds.
+              Helps us personalise your experience. Takes 30 seconds.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-8">
-            {PROFESSIONS.map(p => (
-              <button
-                key={p.id}
-                onClick={() => setProfession(p.id)}
-                className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 text-left transition-all duration-150
-                  ${profession === p.id
-                    ? 'border-brand-teal bg-brand-surface shadow-sm'
-                    : 'border-gray-200 bg-white hover:border-brand-teal/30 hover:bg-gray-50'
-                  }`}
-              >
-                <span className="text-2xl flex-shrink-0">{p.emoji}</span>
-                <div>
-                  <div className={`text-sm font-semibold ${profession === p.id ? 'text-brand-teal' : 'text-brand-ink'}`}>
-                    {p.label}
+          {/* Name field */}
+          <div className="mb-5">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Your name <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Ramesh Kumar"
+              className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-teal outline-none text-sm bg-white transition-colors"
+            />
+          </div>
+
+          {/* Profession picker */}
+          <div className="mb-8">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              What best describes you?
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {PROFESSIONS.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setProfession(p.id)}
+                  className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 text-left transition-all duration-150
+                    ${profession === p.id
+                      ? 'border-brand-teal bg-brand-surface shadow-sm'
+                      : 'border-gray-200 bg-white hover:border-brand-teal/30 hover:bg-gray-50'
+                    }`}
+                >
+                  <span className="text-2xl flex-shrink-0">{p.emoji}</span>
+                  <div>
+                    <div className={`text-sm font-semibold ${profession === p.id ? 'text-brand-teal' : 'text-brand-ink'}`}>
+                      {p.label}
+                    </div>
+                    <div className="text-xs text-gray-400">{p.desc}</div>
                   </div>
-                  <div className="text-xs text-gray-400">{p.desc}</div>
-                </div>
-                {profession === p.id && (
-                  <div className="ml-auto w-5 h-5 rounded-full bg-brand-teal flex items-center justify-center flex-shrink-0">
-                    <CheckCircle size={12} className="text-white" />
-                  </div>
-                )}
-              </button>
-            ))}
+                  {profession === p.id && (
+                    <div className="ml-auto w-5 h-5 rounded-full bg-brand-teal flex items-center justify-center flex-shrink-0">
+                      <CheckCircle size={12} className="text-white" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
 
           <button
@@ -121,8 +173,17 @@ export default function OnboardingPage() {
                 : 'bg-brand-teal text-white hover:bg-brand-teal2 shadow-md shadow-brand-teal/20 hover:-translate-y-0.5'
               }`}
           >
-            Continue
-            <ArrowRight size={18} />
+            Continue <ArrowRight size={18} />
+          </button>
+
+          <p className="text-center text-xs text-gray-400 mt-4">
+            You can skip and update this later from your profile.
+          </p>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="w-full text-center text-xs text-gray-400 hover:text-brand-teal mt-1 transition-colors"
+          >
+            Skip for now →
           </button>
         </div>
       )}
@@ -135,21 +196,18 @@ export default function OnboardingPage() {
               Which state are you in?
             </h1>
             <p className="text-gray-500 text-sm">
-              Helps us show state-specific services and correct CA experts.
+              Helps us show state-specific services and the right CA experts.
             </p>
           </div>
 
-          <div className="mb-6">
+          <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">Your state</label>
             <div className="relative">
               <select
                 value={state}
                 onChange={e => setState(e.target.value)}
                 className={`w-full appearance-none px-4 py-3.5 rounded-2xl border-2 bg-white outline-none text-sm transition-all
-                  ${state
-                    ? 'border-brand-teal text-brand-ink'
-                    : 'border-gray-200 text-gray-400 focus:border-brand-teal'
-                  }`}
+                  ${state ? 'border-brand-teal text-brand-ink' : 'border-gray-200 text-gray-400 focus:border-brand-teal'}`}
               >
                 <option value="">Select your state…</option>
                 {STATES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -162,11 +220,11 @@ export default function OnboardingPage() {
             </div>
           </div>
 
-          {/* Quick-pick popular states */}
+          {/* Quick-pick */}
           <div className="mb-8">
             <p className="text-xs text-gray-400 mb-2">Quick pick</p>
             <div className="flex flex-wrap gap-2">
-              {['Gujarat','Maharashtra','Rajasthan','Delhi','Karnataka','UP'].map(s => (
+              {QUICK_STATES.map(s => (
                 <button
                   key={s}
                   onClick={() => setState(s)}
@@ -182,6 +240,12 @@ export default function OnboardingPage() {
             </div>
           </div>
 
+          {error && (
+            <p className="mb-4 text-sm text-red-500 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              {error}
+            </p>
+          )}
+
           <div className="flex gap-3">
             <button
               onClick={() => setStep(1)}
@@ -195,7 +259,9 @@ export default function OnboardingPage() {
               className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-semibold text-base transition-all
                 ${!state
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-brand-teal text-white hover:bg-brand-teal2 shadow-md shadow-brand-teal/20 hover:-translate-y-0.5'
+                  : loading
+                    ? 'bg-brand-teal/60 text-white cursor-not-allowed'
+                    : 'bg-brand-teal text-white hover:bg-brand-teal2 shadow-md shadow-brand-teal/20 hover:-translate-y-0.5'
                 }`}
             >
               {loading ? (
@@ -204,13 +270,10 @@ export default function OnboardingPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  Setting up…
+                  Saving…
                 </>
               ) : (
-                <>
-                  Go to my dashboard
-                  <ArrowRight size={18} />
-                </>
+                <> Go to my dashboard <ArrowRight size={18} /> </>
               )}
             </button>
           </div>
@@ -235,7 +298,8 @@ export default function OnboardingPage() {
           <div className="mt-6 flex justify-center">
             <div className="flex gap-1.5">
               {[0,1,2].map(i => (
-                <div key={i} className="w-2 h-2 rounded-full bg-brand-teal animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
+                <div key={i} className="w-2 h-2 rounded-full bg-brand-teal animate-bounce"
+                  style={{ animationDelay: `${i * 150}ms` }} />
               ))}
             </div>
           </div>
