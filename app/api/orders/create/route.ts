@@ -7,18 +7,10 @@ import { getServiceBySlug } from '@/lib/allServices'
 
 // POST /api/orders/create
 // Body: {
-//   serviceSlug:   string     — matches lib/allServices.ts slug
-//   planId:        string     — matches ServicePlan.id in lib/services.ts
-//   planName:      string
-//   price:         number     — rupees (int)
-//   slaLabel:      string
-//   caRequired:    boolean
-//   customerNotes: string
-//   name:          string     — customer name (update profile)
-//   email:         string
+//   serviceSlug, planId, planName, price, slaLabel, caRequired,
+//   customerNotes, name, email,
+//   uploadedDocKeys: Record<string, string>  // docId → Supabase objectKey
 // }
-//
-// Returns: { orderId, razorpayOrderId, amount (paise), currency, keyId }
 
 const razorpay = new Razorpay({
   key_id:     process.env.RAZORPAY_KEY_ID     ?? '',
@@ -31,47 +23,47 @@ function generateOrderNumber(): string {
   return `ORD-${year}-${rand}`
 }
 
+function parseSla(sla: string): number {
+  const s = sla.toLowerCase()
+  if (s.includes('same day')) return 8  * 3600000
+  if (s.includes('1 hr'))     return 1  * 3600000
+  if (s.includes('2 hr'))     return 2  * 3600000
+  if (s.includes('6 hr'))     return 6  * 3600000
+  if (s.includes('24 hr'))    return 24 * 3600000
+  if (s.includes('48 hr'))    return 48 * 3600000
+  const days = parseInt(s.match(/(\d+)\s*day/)?.[1] ?? '3', 10)
+  return days * 24 * 3600000
+}
+
 export async function POST(req: NextRequest) {
   try {
-    // Auth guard
-    const sessionCookie = cookies().get(COOKIE_NAME)?.value
-    const session = decodeSession(sessionCookie)
+    const session = decodeSession(cookies().get(COOKIE_NAME)?.value)
     if (!session || session.role !== 'customer') {
       return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 })
     }
 
     const body = await req.json()
     const {
-      serviceSlug,
-      planId,
-      planName,
-      price,
-      slaLabel,
-      caRequired,
-      customerNotes,
-      name,
-      email,
+      serviceSlug, planId, planName, price,
+      slaLabel, caRequired, customerNotes,
+      name, email,
+      uploadedDocKeys = {} as Record<string, string>,
     } = body
 
-    // Validate service exists in catalog
     const catalogService = getServiceBySlug(serviceSlug)
     if (!catalogService) {
       return NextResponse.json({ error: 'Unknown service.' }, { status: 400 })
     }
 
-    // Validate price is a sensible positive integer
     const priceInt = parseInt(price, 10)
     if (!priceInt || priceInt < 1) {
       return NextResponse.json({ error: 'Invalid price.' }, { status: 400 })
     }
 
-    // Fetch user
     const user = await prisma.user.findUnique({ where: { phone: session.phone } })
-    if (!user) {
-      return NextResponse.json({ error: 'User not found.' }, { status: 404 })
-    }
+    if (!user) return NextResponse.json({ error: 'User not found.' }, { status: 404 })
 
-    // Update user profile fields if provided
+    // Update profile fields if provided
     if (name || email) {
       await prisma.user.update({
         where: { id: user.id },
@@ -79,7 +71,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Create ServiceSnapshot (so price/SLA is locked at order time)
+    // Create ServiceSnapshot
     const snapshot = await prisma.serviceSnapshot.create({
       data: {
         slug:       serviceSlug,
@@ -92,17 +84,40 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Create Order row
+    // Create Order
     const order = await prisma.order.create({
       data: {
-        orderNumber:        generateOrderNumber(),
-        customerId:         user.id,
-        serviceSnapshotId:  snapshot.id,
-        customerNotes:      customerNotes || null,
-        status:             'PENDING_PAYMENT',
-        dueBy:              new Date(Date.now() + parseSla(slaLabel ?? catalogService.sla)),
+        orderNumber:       generateOrderNumber(),
+        customerId:        user.id,
+        serviceSnapshotId: snapshot.id,
+        customerNotes:     customerNotes || null,
+        status:            'PENDING_PAYMENT',
+        dueBy:             new Date(Date.now() + parseSla(slaLabel ?? catalogService.sla)),
       },
     })
+
+    // Link any already-uploaded documents to this order
+    const docEntries = Object.entries(uploadedDocKeys as Record<string, string>)
+    if (docEntries.length > 0) {
+      const docsNeeded = catalogService.docsNeeded ?? []
+      await Promise.all(
+        docEntries.map(([docId, objectKey]) => {
+          const docDef = docsNeeded.find(d => d.id === docId)
+          return prisma.orderDocument.create({
+            data: {
+              orderId:      order.id,
+              docKey:       docId,
+              label:        docDef?.label ?? docId,
+              required:     docDef?.required ?? true,
+              status:       'UPLOADED',
+              r2ObjectKey:  objectKey,
+              uploadedById: user.id,
+              uploadedAt:   new Date(),
+            },
+          })
+        })
+      )
+    }
 
     // Create Razorpay order
     const amountInPaise = priceInt * 100
@@ -113,22 +128,22 @@ export async function POST(req: NextRequest) {
       notes:    { orderNumber: order.orderNumber, serviceSlug },
     })
 
-    // Persist Payment row (status=CREATED, payment not yet made)
+    // Persist Payment row
     await prisma.payment.create({
       data: {
-        orderId:          order.id,
-        razorpayOrderId:  rzpOrder.id,
+        orderId:         order.id,
+        razorpayOrderId: rzpOrder.id,
         amountInPaise,
-        status:           'CREATED',
+        status:          'CREATED',
       },
     })
 
-    // System event for audit trail
+    // Audit event
     await prisma.orderEvent.create({
       data: {
         orderId: order.id,
         actor:   'SYSTEM',
-        message: `Order created — ${catalogService.name} (${planName ?? ''}). Awaiting payment.`,
+        message: `Order created — ${catalogService.name}. ${docEntries.length} document(s) uploaded. Awaiting payment.`,
       },
     })
 
@@ -147,17 +162,4 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     )
   }
-}
-
-// Convert SLA label to milliseconds for dueBy calculation
-function parseSla(sla: string): number {
-  const s = sla.toLowerCase()
-  if (s.includes('same day')) return 8  * 60 * 60 * 1000
-  if (s.includes('1 hr'))     return 1  * 60 * 60 * 1000
-  if (s.includes('2 hr'))     return 2  * 60 * 60 * 1000
-  if (s.includes('6 hr'))     return 6  * 60 * 60 * 1000
-  if (s.includes('24 hr'))    return 24 * 60 * 60 * 1000
-  if (s.includes('48 hr'))    return 48 * 60 * 60 * 1000
-  const days = parseInt(s.match(/(\d+)\s*day/)?.[1] ?? '3', 10)
-  return days * 24 * 60 * 60 * 1000
 }
