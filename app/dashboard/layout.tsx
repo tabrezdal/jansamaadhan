@@ -1,24 +1,23 @@
-import type { Metadata } from 'next'
-import DashboardSidebar from '@/components/dashboard/Sidebar'
-import DashboardTopbar from '@/components/dashboard/Topbar'
-
-export const metadata: Metadata = {
-  title: 'My Dashboard — JanSamaadhan',
-}
+import Topbar from '@/components/dashboard/Topbar'
+import Sidebar from '@/components/dashboard/Sidebar'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#F4F6F9] flex">
-      {/* Sidebar — hidden on mobile, visible lg+ */}
-      <DashboardSidebar />
+    <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
-        <DashboardTopbar />
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 lg:py-8 max-w-7xl w-full mx-auto">
+      {/* Sidebar — fixed height, never scrolls with page */}
+      <aside className="hidden lg:flex flex-col w-56 flex-shrink-0 h-screen sticky top-0 border-r border-gray-100 bg-white">
+        <Sidebar />
+      </aside>
+
+      {/* Main content — scrolls independently */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <Topbar />
+        <main className="flex-1 overflow-y-auto p-5 lg:p-7">
           {children}
         </main>
       </div>
+
     </div>
   )
 }
