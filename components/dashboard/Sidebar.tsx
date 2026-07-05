@@ -1,130 +1,139 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, FileText, FolderOpen, User,
-  Bell, HelpCircle, LogOut, Plus, ChevronRight,
-  Building2, CreditCard, Scale, PiggyBank
+  IndianRupee, Receipt, Shield, HelpCircle,
+  LogOut, ChevronRight, Bell,
 } from 'lucide-react'
 
-const NAV = [
-  {
-    label: 'Menu',
-    items: [
-      { href: '/dashboard',           icon: LayoutDashboard, label: 'Overview' },
-      { href: '/dashboard/orders',    icon: FileText,        label: 'My Orders',    badge: '2' },
-      { href: '/dashboard/documents', icon: FolderOpen,      label: 'Documents' },
-      { href: '/dashboard/profile',   icon: User,            label: 'My Profile' },
-    ],
-  },
-  {
-    label: 'Services',
-    items: [
-      { href: '/services/income-tax', icon: FileText,    label: 'Income Tax' },
-      { href: '/services/gst',        icon: Building2,   label: 'GST' },
-      { href: '/services/identity',   icon: CreditCard,  label: 'PAN & Aadhaar' },
-      { href: '/services/legal',      icon: Scale,       label: 'Legal Docs' },
-      { href: '/services/loans',      icon: PiggyBank,   label: 'Loans' },
-    ],
-  },
-  {
-    label: 'Support',
-    items: [
-      { href: '/dashboard/notifications', icon: Bell,       label: 'Notifications', badge: '3' },
-      { href: '/help',                    icon: HelpCircle, label: 'Help & FAQ' },
-    ],
-  },
+interface UserProfile {
+  name:  string
+  phone: string
+}
+
+const NAV_ITEMS = [
+  { href: '/dashboard',               label: 'Overview',   icon: LayoutDashboard },
+  { href: '/dashboard/orders',        label: 'My Orders',  icon: Receipt         },
+  { href: '/dashboard/documents',     label: 'Documents',  icon: FolderOpen      },
+  { href: '/dashboard/profile',       label: 'My Profile', icon: User            },
+]
+
+const SERVICE_LINKS = [
+  { href: '/services/income-tax', label: 'Income Tax' },
+  { href: '/services/gst',        label: 'GST'        },
+  { href: '/services/identity',   label: 'PAN & Aadhaar' },
+  { href: '/services/legal',      label: 'Legal Docs' },
 ]
 
 export default function DashboardSidebar() {
-  const path = usePathname()
+  const pathname = usePathname()
+  const router   = useRouter()
+
+  const [profile,  setProfile]  = useState<UserProfile | null>(null)
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/profile')
+      .then(r => r.json())
+      .then(d => {
+        if (d.profile) setProfile({ name: d.profile.name, phone: d.profile.phone })
+      })
+      .catch(() => {})
+  }, [])
+
+  async function handleSignOut() {
+    setLoggingOut(true)
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.push('/login')
+  }
+
+  const displayName = profile?.name || 'Your Account'
+  const phone       = profile?.phone ? `+91 ${profile.phone}` : ''
+  const initial     = (profile?.name || profile?.phone || 'U')[0].toUpperCase()
 
   return (
-    <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-gray-100 z-40">
+    <aside className="w-60 bg-white border-r border-gray-100 flex flex-col h-full">
 
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-gray-100">
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg bg-brand-teal flex items-center justify-center group-hover:bg-brand-teal2 transition-colors">
-            <span className="text-white font-display font-bold text-base leading-none">J</span>
+      <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0">
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-brand-teal flex items-center justify-center">
+            <span className="text-white font-display font-bold text-sm leading-none">ज</span>
           </div>
           <div>
-            <div className="font-display font-bold text-brand-teal text-base leading-none">
+            <div className="font-display font-bold text-brand-teal text-sm leading-none">
               Jan<span className="text-brand-amber">Samaadhan</span>
             </div>
-            <div className="text-[10px] text-gray-400 mt-0.5">jan samaadhan</div>
+            <div className="text-[9px] text-gray-400 mt-0.5">jan samaadhan</div>
           </div>
         </Link>
       </div>
 
-      {/* New service CTA */}
-      <div className="px-4 py-4 border-b border-gray-100">
-        <Link
-          href="/services"
-          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-brand-teal text-white text-sm font-semibold hover:bg-brand-teal2 transition-all shadow-sm hover:shadow-md"
-        >
-          <Plus size={16} />
-          New Service
+      {/* New Service CTA */}
+      <div className="px-4 py-3 flex-shrink-0">
+        <Link href="/services"
+          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-brand-teal text-white text-xs font-semibold hover:bg-brand-teal2 transition-all">
+          + New Service
         </Link>
       </div>
 
-      {/* Nav sections */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-5">
-        {NAV.map(section => (
-          <div key={section.label}>
-            <p className="px-3 mb-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
-              {section.label}
-            </p>
-            <ul className="space-y-0.5">
-              {section.items.map(item => {
-                const Icon    = item.icon
-                const active  = path === item.href
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group
-                        ${active
-                          ? 'bg-brand-teal text-white shadow-sm shadow-brand-teal/20'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-brand-teal'
-                        }`}
-                    >
-                      <Icon size={16} className={active ? 'text-white' : 'text-gray-400 group-hover:text-brand-teal'} />
-                      <span className="flex-1">{item.label}</span>
-                      {item.badge && (
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center
-                          ${active ? 'bg-white/20 text-white' : 'bg-brand-amber text-white'}`}>
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ))}
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-3 pb-4">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-2 mb-1.5">Menu</p>
+        <div className="space-y-0.5 mb-5">
+          {NAV_ITEMS.map(item => {
+            const Icon    = item.icon
+            const active  = pathname === item.href
+            return (
+              <Link key={item.href} href={item.href}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all
+                  ${active
+                    ? 'bg-brand-surface text-brand-teal'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+                  }`}>
+                <Icon size={16} className={active ? 'text-brand-teal' : 'text-gray-400'} />
+                {item.label}
+              </Link>
+            )
+          })}
+        </div>
+
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-2 mb-1.5">Services</p>
+        <div className="space-y-0.5">
+          {SERVICE_LINKS.map(s => (
+            <Link key={s.href} href={s.href}
+              className="flex items-center justify-between px-3 py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-all group">
+              {s.label}
+              <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-400" />
+            </Link>
+          ))}
+        </div>
       </nav>
 
-      {/* User footer */}
-      <div className="px-3 py-3 border-t border-gray-100">
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group">
-          <div className="w-8 h-8 rounded-lg bg-brand-teal flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
-            R
+      {/* User section — real data from /api/profile */}
+      <div className="border-t border-gray-100 p-3 flex-shrink-0">
+        <Link href="/dashboard/profile"
+          className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-gray-50 transition-colors group mb-1">
+          <div className="w-8 h-8 rounded-xl bg-brand-teal flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+            {initial}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-gray-800 truncate">Ramesh Kumar</div>
-            <div className="text-[11px] text-gray-400 truncate">+91 98765 43210</div>
+            <p className="text-xs font-semibold text-gray-800 truncate">{displayName}</p>
+            <p className="text-[10px] text-gray-400 truncate">{phone}</p>
           </div>
-          <ChevronRight size={14} className="text-gray-300 group-hover:text-brand-teal transition-colors flex-shrink-0" />
-        </div>
+          <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-400 flex-shrink-0" />
+        </Link>
+
         <button
-          className="flex items-center gap-2 w-full px-3 py-2 mt-1 rounded-xl text-sm text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
-          onClick={async () => { await fetch('/api/auth/logout', { method: 'POST' }); window.location.href = '/login' }}
+          onClick={handleSignOut}
+          disabled={loggingOut}
+          className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all disabled:opacity-50"
         >
           <LogOut size={14} />
-          Sign out
+          {loggingOut ? 'Signing out…' : 'Sign out'}
         </button>
       </div>
     </aside>

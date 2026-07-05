@@ -8,7 +8,7 @@ interface Msg91Response {
 // ── Dev/staging bypass ───────────────────────────────────────────────
 // When NEXT_PUBLIC_OTP_BYPASS=true, any OTP attempt succeeds and the
 // code "000000" always verifies. Remove this env var in production.
-const OTP_BYPASS = process.env.NEXT_PUBLIC_OTP_BYPASS === 'true'
+const OTP_BYPASS = process.env.OTP_BYPASS === 'true'
 
 export async function sendOtp(phone: string): Promise<void> {
   if (OTP_BYPASS) {
