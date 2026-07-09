@@ -1,24 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { decodeSession, COOKIE_NAME } from '@/lib/session'
 
-/**
- * Next.js middleware — runs on every matched route before rendering.
- *
- * Protected routes (require session cookie):
- *   Customer area: /dashboard, /order/*, /profile, /documents, /onboarding
- *   CA area:       /ca-portal
- *
- * Auth routes (redirect to home area if already logged in):
- *   /login, /register, /ca-register
- *
- * Role enforcement:
- *   - A logged-in 'customer' visiting /ca-portal is sent to /restricted?for=ca
- *   - A logged-in 'ca' visiting customer-only routes is sent to /restricted?for=customer
- */
-
 const CUSTOMER_PROTECTED = ['/dashboard', '/order', '/profile', '/documents', '/onboarding']
 const CA_PROTECTED        = ['/ca-portal']
-const AUTH_ONLY            = ['/login', '/register', '/ca-register']
+const ADMIN_PROTECTED     = ['/admin']
+const AUTH_ONLY           = ['/login', '/register', '/ca-register']
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
@@ -26,10 +12,11 @@ export function middleware(req: NextRequest) {
 
   const isCustomerArea = CUSTOMER_PROTECTED.some(p => pathname.startsWith(p))
   const isCAArea        = CA_PROTECTED.some(p => pathname.startsWith(p))
-  const isProtected     = isCustomerArea || isCAArea
-  const isAuthOnly       = AUTH_ONLY.some(p => pathname.startsWith(p))
+  const isAdminArea     = ADMIN_PROTECTED.some(p => pathname.startsWith(p))
+  const isAuthOnly      = AUTH_ONLY.some(p => pathname.startsWith(p))
+  const isProtected     = isCustomerArea || isCAArea || isAdminArea
 
-  // Unauthenticated → redirect to the appropriate login page
+  // Unauthenticated → redirect to login
   if (isProtected && !session) {
     const url = req.nextUrl.clone()
     url.pathname = isCAArea ? '/ca-register' : '/login'
@@ -37,13 +24,23 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Logged in but wrong role for this area → restricted page
+  // Admin area — only ADMIN role allowed (checked in page via requireAdmin())
+  // Middleware just ensures they're logged in; role check is in requireAdmin()
+  if (isAdminArea && !session) {
+    const url = req.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  // Wrong role for CA area
   if (session && isCAArea && session.role !== 'ca') {
     const url = req.nextUrl.clone()
     url.pathname = '/restricted'
     url.searchParams.set('for', 'ca')
     return NextResponse.redirect(url)
   }
+
+  // Wrong role for customer area
   if (session && isCustomerArea && session.role !== 'customer') {
     const url = req.nextUrl.clone()
     url.pathname = '/restricted'
@@ -51,7 +48,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Already logged in → redirect away from auth pages to the right home area
+  // Already logged in → redirect away from auth pages
   if (isAuthOnly && session) {
     const url = req.nextUrl.clone()
     url.pathname = session.role === 'ca' ? '/ca-portal' : '/dashboard'
@@ -69,6 +66,7 @@ export const config = {
     '/documents/:path*',
     '/onboarding/:path*',
     '/ca-portal/:path*',
+    '/admin/:path*',
     '/login',
     '/register',
     '/ca-register',
