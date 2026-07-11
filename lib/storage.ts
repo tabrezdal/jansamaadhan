@@ -15,8 +15,7 @@ export function buildDocumentKey(orderId: string, docKey: string, fileExt: strin
   return `orders/${orderId}/${docKey}-${randomUUID()}.${cleanExt}`
 }
 
-// Generate a presigned upload URL using Supabase's createSignedUploadUrl endpoint
-export async function getUploadUrl(objectKey: string, _contentType: string): Promise<string> {
+export async function getUploadUrl(objectKey: string, contentType: string): Promise<string> {
   const { url, key, bucket } = getConfig()
 
   const res = await fetch(
@@ -27,6 +26,10 @@ export async function getUploadUrl(objectKey: string, _contentType: string): Pro
         Authorization:  `Bearer ${key}`,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        upsert:      false,
+        contentType: contentType,
+      }),
     },
   )
 
@@ -37,7 +40,6 @@ export async function getUploadUrl(objectKey: string, _contentType: string): Pro
 
   const data = await res.json() as { signedURL: string; token: string; path: string }
 
-  // Supabase returns a relative signedURL — prefix with storage base
   const signedUrl = data.signedURL.startsWith('http')
     ? data.signedURL
     : `${url}/storage/v1${data.signedURL}`
@@ -45,7 +47,6 @@ export async function getUploadUrl(objectKey: string, _contentType: string): Pro
   return signedUrl
 }
 
-// Generate a presigned download URL for an existing object
 export async function getDownloadUrl(objectKey: string): Promise<string> {
   const { url, key, bucket } = getConfig()
 
@@ -73,7 +74,6 @@ export async function getDownloadUrl(objectKey: string): Promise<string> {
     : `${url}/storage/v1${data.signedURL}`
 }
 
-// Delete a stored object
 export async function deleteDocument(objectKey: string): Promise<void> {
   const { url, key, bucket } = getConfig()
 
