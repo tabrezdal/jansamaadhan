@@ -33,18 +33,29 @@ export async function getUploadUrl(objectKey: string, contentType: string): Prom
     },
   )
 
+  const text = await res.text()
+
   if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Supabase upload sign error: ${err}`)
+    throw new Error(`Supabase upload sign error: ${text}`)
   }
 
-  const data = await res.json() as { signedURL: string; token: string; path: string }
+  // Log full response in dev so we can see the exact shape
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[storage] upload sign response:', text)
+  }
 
-  const signedUrl = data.signedURL.startsWith('http')
-    ? data.signedURL
-    : `${url}/storage/v1${data.signedURL}`
+  const data = JSON.parse(text) as Record<string, unknown>
 
-  return signedUrl
+  // Handle both possible response shapes from Supabase
+  // Shape 1: { signedURL: string, token: string, path: string }
+  // Shape 2: { signedUrl: string, path: string }  (note lowercase 'l')
+  const rawUrl = (data.signedURL ?? data.signedUrl ?? data.url) as string | undefined
+
+  if (!rawUrl) {
+    throw new Error(`Supabase upload sign: unexpected response shape — ${text}`)
+  }
+
+  return rawUrl.startsWith('http') ? rawUrl : `${url}/storage/v1${rawUrl}`
 }
 
 export async function getDownloadUrl(objectKey: string): Promise<string> {
@@ -62,16 +73,20 @@ export async function getDownloadUrl(objectKey: string): Promise<string> {
     },
   )
 
+  const text = await res.text()
+
   if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Supabase download sign error: ${err}`)
+    throw new Error(`Supabase download sign error: ${text}`)
   }
 
-  const data = await res.json() as { signedURL: string }
+  const data = JSON.parse(text) as Record<string, unknown>
+  const rawUrl = (data.signedURL ?? data.signedUrl ?? data.url) as string | undefined
 
-  return data.signedURL.startsWith('http')
-    ? data.signedURL
-    : `${url}/storage/v1${data.signedURL}`
+  if (!rawUrl) {
+    throw new Error(`Supabase download sign: unexpected response shape — ${text}`)
+  }
+
+  return rawUrl.startsWith('http') ? rawUrl : `${url}/storage/v1${rawUrl}`
 }
 
 export async function deleteDocument(objectKey: string): Promise<void> {
