@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { CheckCircle, Clock, AlertCircle, ArrowRight, Plus, FileText } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, ArrowRight, Plus, FileText, CreditCard } from 'lucide-react'
 import { getCurrentUser, getAllOrders, getStatusConfig } from '@/lib/auth'
 
 export default async function OrdersPage() {
@@ -9,6 +9,12 @@ export default async function OrdersPage() {
   const active    = orders.filter(o => !['COMPLETED','CANCELLED','REFUNDED'].includes(o.status))
   const completed = orders.filter(o => o.status === 'COMPLETED')
   const other     = orders.filter(o => ['CANCELLED','REFUNDED'].includes(o.status))
+
+  function getCALabel(status: string, caName: string | null): string {
+    if (status === 'PENDING_PAYMENT') return 'Complete payment to activate order'
+    if (!caName) return 'Assigning CA…'
+    return `CA: ${caName}`
+  }
 
   return (
     <div className="space-y-6">
@@ -43,13 +49,16 @@ export default async function OrdersPage() {
               </h3>
               <div className="space-y-3">
                 {active.map(order => {
-                  const st        = getStatusConfig(order.status)
-                  const uploaded  = order.documents.filter(d => d.status === 'UPLOADED').length
-                  const totalDocs = order.documents.length
-                  const caName    = order.ca?.user.name ?? 'Assigning CA…'
+                  const st           = getStatusConfig(order.status)
+                  const uploaded     = order.documents.filter(d => d.status === 'UPLOADED').length
+                  const totalDocs    = order.documents.length
+                  const caName       = order.ca?.user.name ?? null
+                  const isPending    = order.status === 'PENDING_PAYMENT'
 
                   return (
-                    <div key={order.id} className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-brand-teal/30 hover:shadow-sm transition-all">
+                    <div key={order.id} className={`bg-white rounded-2xl border p-5 transition-all
+                      ${isPending ? 'border-amber-200 bg-amber-50/30' : 'border-gray-100 hover:border-brand-teal/30 hover:shadow-sm'}`}>
+
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div>
                           <div className="font-semibold text-gray-800">{order.serviceSnapshot.name}</div>
@@ -64,35 +73,52 @@ export default async function OrdersPage() {
                         </div>
                       </div>
 
-                      {/* Progress bar */}
-                      <div className="mb-3">
-                        <div className="flex justify-between mb-1">
-                          <span className="text-[11px] text-gray-400">Progress</span>
-                          <span className="text-[11px] font-medium text-gray-600">{st.progress}%</span>
+                      {/* Progress bar — only for non-pending */}
+                      {!isPending && (
+                        <div className="mb-3">
+                          <div className="flex justify-between mb-1">
+                            <span className="text-[11px] text-gray-400">Progress</span>
+                            <span className="text-[11px] font-medium text-gray-600">{st.progress}%</span>
+                          </div>
+                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-brand-teal to-blue-400 rounded-full" style={{ width: `${st.progress}%` }} />
+                          </div>
                         </div>
-                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-brand-teal to-blue-400 rounded-full" style={{ width: `${st.progress}%` }} />
-                        </div>
-                      </div>
+                      )}
 
                       <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>CA: {caName}</span>
+                        <span>{getCALabel(order.status, caName)}</span>
                         <div className="flex items-center gap-4">
                           {totalDocs > 0 && (
                             <span className={uploaded < totalDocs ? 'text-amber-600 font-medium' : 'text-green-600 font-medium'}>
                               {uploaded}/{totalDocs} docs
                             </span>
                           )}
-                          {order.dueBy && (
+                          {order.dueBy && !isPending && (
                             <span>ETA {new Date(order.dueBy).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
                           )}
                         </div>
                       </div>
 
                       {/* Latest event */}
-                      {order.events[0] && (
-                        <div className="mt-3 pt-3 border-t border-gray-50 text-[11px] text-gray-400">
+                      {order.events[0] && !isPending && (
+                        <div className="mt-3 pt-3 border-t border-gray-50 text-[11px] text-gray-400 truncate">
                           {order.events[0].message}
+                        </div>
+                      )}
+
+                      {/* Resume payment CTA */}
+                      {isPending && (
+                        <div className="mt-3 pt-3 border-t border-amber-200 flex items-center justify-between">
+                          <span className="text-xs text-amber-700 flex items-center gap-1.5">
+                            <AlertCircle size={12} /> Payment pending — order not yet active
+                          </span>
+                          <Link
+                            href={`/dashboard/orders/${order.id}/pay`}
+                            className="flex items-center gap-1.5 text-xs font-semibold text-white bg-brand-amber hover:bg-brand-amber2 px-3 py-1.5 rounded-lg transition-all"
+                          >
+                            <CreditCard size={12} /> Complete Payment →
+                          </Link>
                         </div>
                       )}
 
@@ -137,7 +163,7 @@ export default async function OrdersPage() {
             </div>
           )}
 
-          {/* Cancelled / Refunded */}
+          {/* Cancelled/Refunded */}
           {other.length > 0 && (
             <div>
               <h3 className="font-semibold text-gray-400 text-sm mb-3 flex items-center gap-2">

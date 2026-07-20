@@ -1,11 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
-import {
-  Shield, CheckCircle, ChevronLeft,
-  Loader2, Download, LayoutDashboard
-} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Shield, CheckCircle, ChevronLeft, Loader2, Download, LayoutDashboard } from 'lucide-react'
 import type { Service } from '@/lib/services'
 import type { OrderState } from './OrderFlow'
 
@@ -24,10 +22,13 @@ declare global {
 }
 
 export default function Step4Pay({ service, order, onBack }: Props) {
-  const plan                          = order.selectedPlan!
-  const [payState, setPayState]       = useState<PayState>('idle')
+  const router                                = useRouter()
+  const plan                                  = order.selectedPlan!
+  const [payState, setPayState]               = useState<PayState>('idle')
   const [completedOrderId, setCompletedOrderId] = useState('')
   const [completedOrderNo, setCompletedOrderNo] = useState('')
+  // Guard: once payment is initiated, store the orderId to prevent re-creation
+  const createdOrderId = useRef<string | null>(null)
 
   async function loadRazorpayScript(): Promise<void> {
     if (window.Razorpay) return
@@ -41,59 +42,82 @@ export default function Step4Pay({ service, order, onBack }: Props) {
   }
 
   async function handlePay() {
+    // Prevent double-payment: if already succeeded or loading, do nothing
+    if (payState === 'success' || payState === 'loading') return
     setPayState('loading')
 
     try {
-      // ── 1. Create order server-side ─────────────────────────────────
-      const createRes = await fetch('/api/orders/create', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          serviceSlug:     service.slug,
-          planId:          plan.id,
-          planName:        plan.name,
-          price:           plan.price,
-          slaLabel:        service.sla,
-          caRequired:      service.caRequired,
-          customerNotes:   order.notes,
-          name:            order.name,
-          email:           order.email,
-          uploadedDocKeys: order.uploadedDocKeys ?? {},
-        }),
-      })
+      let razorpayOrderId: string
+      let amountInPaise:   number
+      let keyId:           string
+      let orderId:         string
+      let orderNumber:     string
 
-      if (!createRes.ok) {
-        const err = await createRes.json()
-        throw new Error(err.error || 'Failed to create order.')
+      // Reuse existing order if already created (prevents double order creation on retry)
+      if (createdOrderId.current) {
+        const existingRes = await fetch(`/api/orders/${createdOrderId.current}`)
+        if (!existingRes.ok) throw new Error('Failed to load existing order.')
+        const existing = await existingRes.json()
+        orderId         = existing.order.id
+        orderNumber     = existing.order.orderNumber
+        razorpayOrderId = existing.order.payment.razorpayOrderId
+        amountInPaise   = existing.order.payment.amountInPaise
+        keyId           = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? ''
+      } else {
+        // First attempt — create the order
+        const createRes = await fetch('/api/orders/create', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            serviceSlug:     service.slug,
+            planId:          plan.id,
+            planName:        plan.name,
+            price:           plan.price,
+            slaLabel:        service.sla,
+            caRequired:      service.caRequired,
+            customerNotes:   order.notes,
+            name:            order.name,
+            email:           order.email,
+            uploadedDocKeys: order.uploadedDocKeys ?? {},
+          }),
+        })
+
+        if (!createRes.ok) {
+          const err = await createRes.json()
+          throw new Error(err.error || 'Failed to create order.')
+        }
+
+        const data    = await createRes.json()
+        orderId         = data.orderId
+        orderNumber     = data.orderNumber
+        razorpayOrderId = data.razorpayOrderId
+        amountInPaise   = data.amount
+        keyId           = data.keyId ?? process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? ''
+
+        // Store so retries reuse same order
+        createdOrderId.current = orderId
       }
 
-      const { orderId, orderNumber, razorpayOrderId, amount, keyId } = await createRes.json()
-
-      // ── 2. Load Razorpay checkout ────────────────────────────────────
       await loadRazorpayScript()
-      setPayState('idle') // show the modal while processing
+      setPayState('idle') // Show modal while user pays
 
       await new Promise<void>((resolve, reject) => {
         const rzp = new window.Razorpay({
           key:         keyId,
-          amount,
+          amount:      amountInPaise,
           currency:    'INR',
           name:        'JanSamaadhan',
           description: `${service.name} — ${plan.name}`,
           order_id:    razorpayOrderId,
-          prefill: {
-            name:  order.name,
-            email: order.email || '',
-          },
-          theme: { color: '#1A5F7A' },
-          modal: { ondismiss: () => reject(new Error('dismissed')) },
+          prefill:     { name: order.name, email: order.email || '' },
+          theme:       { color: '#1A5F7A' },
+          modal:       { ondismiss: () => reject(new Error('dismissed')) },
 
           handler: async (response: {
             razorpay_payment_id: string
             razorpay_order_id:   string
             razorpay_signature:  string
           }) => {
-            // ── 3. Verify payment server-side ──────────────────────────
             const verifyRes = await fetch('/api/orders/verify', {
               method:  'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -120,12 +144,13 @@ export default function Step4Pay({ service, order, onBack }: Props) {
         rzp.open()
       })
 
+      // Payment successful — show success screen immediately
       setPayState('success')
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : ''
       if (msg === 'dismissed') {
-        setPayState('idle') // user closed modal — not an error
+        setPayState('idle')
       } else {
         console.error('[Step4Pay]', err)
         setPayState('failed')
@@ -148,7 +173,7 @@ export default function Step4Pay({ service, order, onBack }: Props) {
           <p className="text-xs font-semibold text-brand-teal mb-3">What happens next</p>
           {[
             { emoji: '👤', text: `A verified CA will be assigned to your ${service.name} within 1 hour.` },
-            { emoji: '📲', text: 'You\'ll receive an SMS confirmation and CA contact details shortly.' },
+            { emoji: '📲', text: 'You\'ll receive status updates via your dashboard.' },
             { emoji: '⏱️', text: `Your service will be delivered within ${service.sla}.` },
             { emoji: '📥', text: 'All documents and acknowledgements will appear in your dashboard.' },
           ].map(({ emoji, text }) => (
@@ -160,16 +185,12 @@ export default function Step4Pay({ service, order, onBack }: Props) {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
-          <Link
-            href="/dashboard"
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-teal text-white font-semibold text-sm hover:bg-brand-teal2 transition-all"
-          >
+          <Link href="/dashboard"
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-teal text-white font-semibold text-sm hover:bg-brand-teal2 transition-all">
             <LayoutDashboard size={15} /> Go to Dashboard
           </Link>
-          <Link
-            href={`/dashboard/orders`}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:border-brand-teal hover:text-brand-teal transition-all"
-          >
+          <Link href="/dashboard/orders"
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:border-brand-teal hover:text-brand-teal transition-all">
             <Download size={15} /> Track Order
           </Link>
         </div>
@@ -180,8 +201,6 @@ export default function Step4Pay({ service, order, onBack }: Props) {
   // ── Payment screen ──────────────────────────────────────────────────
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-      {/* Payment panel */}
       <div className="lg:col-span-2 space-y-4">
 
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
@@ -189,27 +208,22 @@ export default function Step4Pay({ service, order, onBack }: Props) {
           <p className="text-sm text-gray-400">Secured by Razorpay · UPI, cards, net banking accepted.</p>
         </div>
 
-        {/* Primary pay button */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 sm:p-6 text-center">
           <div className="mb-4">
             <div className="font-display font-bold text-4xl text-brand-teal mb-1">₹{plan.price}</div>
             <div className="text-sm text-gray-500">{service.name} · {plan.name} plan</div>
           </div>
 
-          <button
-            onClick={handlePay}
-            disabled={payState === 'loading'}
+          <button onClick={handlePay} disabled={payState === 'loading'}
             className={`w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-base transition-all
               ${payState === 'loading'
                 ? 'bg-brand-teal/60 text-white cursor-not-allowed'
                 : 'bg-brand-amber text-white hover:bg-brand-amber2 shadow-lg shadow-brand-amber/25 hover:-translate-y-0.5'
-              }`}
-          >
-            {payState === 'loading' ? (
-              <><Loader2 size={18} className="animate-spin" /> Opening payment…</>
-            ) : (
-              <>Pay ₹{plan.price} Securely →</>
-            )}
+              }`}>
+            {payState === 'loading'
+              ? <><Loader2 size={18} className="animate-spin" /> Opening payment…</>
+              : <>Pay ₹{plan.price} Securely →</>
+            }
           </button>
 
           <div className="flex flex-wrap justify-center gap-2 mt-4">
@@ -219,17 +233,12 @@ export default function Step4Pay({ service, order, onBack }: Props) {
           </div>
         </div>
 
-        {/* UPI quick links — all trigger the same Razorpay modal */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Pay instantly via</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {UPI_APPS.map(app => (
-              <button
-                key={app}
-                onClick={handlePay}
-                disabled={payState === 'loading'}
-                className="py-3 px-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:border-brand-teal hover:bg-brand-surface hover:text-brand-teal transition-all text-center disabled:opacity-50"
-              >
+              <button key={app} onClick={handlePay} disabled={payState === 'loading'}
+                className="py-3 px-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:border-brand-teal hover:bg-brand-surface hover:text-brand-teal transition-all text-center disabled:opacity-50">
                 {app}
               </button>
             ))}
@@ -242,10 +251,7 @@ export default function Step4Pay({ service, order, onBack }: Props) {
           </div>
         )}
 
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-brand-teal transition-colors"
-        >
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-brand-teal transition-colors">
           <ChevronLeft size={14} /> Back to review
         </button>
       </div>
@@ -254,7 +260,6 @@ export default function Step4Pay({ service, order, onBack }: Props) {
       <div>
         <div className="bg-white rounded-2xl border border-gray-100 p-5 sticky top-20 space-y-4">
           <h3 className="font-semibold text-sm text-gray-800">Order Summary</h3>
-
           <div className="flex items-center gap-3 p-3 bg-brand-surface rounded-xl">
             <span className="text-2xl">{service.emoji}</span>
             <div>
@@ -262,7 +267,6 @@ export default function Step4Pay({ service, order, onBack }: Props) {
               <div className="text-xs text-gray-500">{plan.name} plan</div>
             </div>
           </div>
-
           <div className="space-y-2 text-sm border-t border-gray-100 pt-3">
             <div className="flex justify-between">
               <span className="text-gray-500">Service fee</span>
@@ -277,24 +281,15 @@ export default function Step4Pay({ service, order, onBack }: Props) {
               <span className="text-brand-teal font-display text-xl">₹{plan.price}</span>
             </div>
           </div>
-
           <div className="space-y-2 pt-2 border-t border-gray-100">
-            {[
-              `Delivered in ${service.sla}`,
-              'ICAI verified CA assigned',
-              'Full refund if SLA missed',
-              'Lifetime document storage',
-            ].map(g => (
+            {[`Delivered in ${service.sla}`, 'ICAI verified CA assigned', 'Full refund if SLA missed', 'Lifetime document storage'].map(g => (
               <div key={g} className="flex items-center gap-2 text-xs text-gray-500">
-                <CheckCircle size={12} className="text-brand-green flex-shrink-0" />
-                {g}
+                <CheckCircle size={12} className="text-brand-green flex-shrink-0" /> {g}
               </div>
             ))}
           </div>
-
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-400 pt-1">
-            <Shield size={11} className="text-brand-green" />
-            Razorpay · PCI-DSS Compliant
+            <Shield size={11} className="text-brand-green" /> Razorpay · PCI-DSS Compliant
           </div>
         </div>
       </div>
