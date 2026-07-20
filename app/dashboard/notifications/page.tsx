@@ -1,157 +1,150 @@
 'use client'
 
-import { useState } from 'react'
-import { Bell, CheckCheck, AlertCircle, Clock, Info, X, CheckCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import {
+  Bell, CreditCard, FileText, UserCheck,
+  Activity, Info, ArrowRight, RefreshCw
+} from 'lucide-react'
 
-type NotifType = 'action' | 'update' | 'deadline' | 'info' | 'success'
-
-interface Notif {
-  id:     string
-  type:   NotifType
-  title:  string
-  body:   string
-  time:   string
-  read:   boolean
-  href?:  string
+interface Notification {
+  id:          string
+  type:        'payment' | 'status' | 'docs' | 'ca' | 'info'
+  actor:       string
+  message:     string
+  createdAt:   string
+  orderId:     string
+  orderNumber: string
+  serviceName: string
+  orderStatus: string
 }
 
-const INITIAL: Notif[] = [
-  { id: 'n1', type: 'action',   title: 'Upload required — ITR-2',             body: 'CA Priya Mehta needs your Form 26AS to continue your ITR-2 filing. Upload by 6 PM today.',    time: '2 hours ago',   read: false, href: '/dashboard/orders/ORD-2025-0041' },
-  { id: 'n2', type: 'update',   title: 'GST Application submitted',           body: 'Your GST registration application has been submitted on the GSTN portal. ARN expected within 24 hours.', time: '5 hours ago',   read: false, href: '/dashboard/orders/ORD-2025-0040' },
-  { id: 'n3', type: 'deadline', title: 'ITR filing deadline — 31 July 2025',  body: 'The last date to file your Income Tax Return for AY 2025-26 is 31 July. File now to avoid a ₹5,000 penalty.', time: '1 day ago',     read: false, href: '/order/itr-1' },
-  { id: 'n4', type: 'success',  title: 'PAN-Aadhaar Linking complete',        body: 'Your PAN (ABCPK1234D) has been successfully linked with Aadhaar. Acknowledgement saved to Documents.', time: '3 days ago',    read: true,  href: '/dashboard/documents' },
-  { id: 'n5', type: 'deadline', title: 'GSTR-3B due on 20 July',             body: 'Monthly GSTR-3B return for June 2025 is due on 20 July. Add GST return filing to avoid late fees.', time: '4 days ago',    read: true,  href: '/order/gstr-3b' },
-  { id: 'n6', type: 'update',   title: 'ITR-1 filed successfully',            body: 'Your Income Tax Return for AY 2025-26 has been filed. ITR-V sent to your email and saved to Documents.', time: '2 weeks ago',   read: true,  href: '/dashboard/orders/ORD-2025-0035' },
-  { id: 'n7', type: 'info',     title: 'New service: Credit Score Review',    body: 'Check and fix your CIBIL score for just ₹199. Helps you get better loan rates. Available now.', time: '3 weeks ago',   read: true,  href: '/order/cibil' },
-  { id: 'n8', type: 'success',  title: 'Udyam certificate delivered',         body: 'Your MSME/Udyam registration is complete. Certificate saved to your Document Vault.', time: '2 months ago',  read: true,  href: '/dashboard/documents' },
-]
+const TYPE_CONFIG = {
+  payment: { icon: CreditCard,  color: 'text-green-600',  bg: 'bg-green-50',  label: 'Payment'  },
+  status:  { icon: Activity,    color: 'text-blue-600',   bg: 'bg-blue-50',   label: 'Update'   },
+  docs:    { icon: FileText,    color: 'text-amber-600',  bg: 'bg-amber-50',  label: 'Document' },
+  ca:      { icon: UserCheck,   color: 'text-purple-600', bg: 'bg-purple-50', label: 'CA'       },
+  info:    { icon: Info,        color: 'text-gray-500',   bg: 'bg-gray-50',   label: 'Info'     },
+}
 
-const TYPE_CFG: Record<NotifType, { icon: typeof AlertCircle; color: string; bg: string }> = {
-  action:   { icon: AlertCircle,  color: 'text-red-500',    bg: 'bg-red-50' },
-  update:   { icon: Clock,        color: 'text-blue-500',   bg: 'bg-blue-50' },
-  deadline: { icon: Bell,         color: 'text-amber-500',  bg: 'bg-amber-50' },
-  info:     { icon: Info,         color: 'text-gray-400',   bg: 'bg-gray-50' },
-  success:  { icon: CheckCircle,  color: 'text-green-500',  bg: 'bg-green-50' },
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins  = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days  = Math.floor(diff / 86400000)
+  if (mins < 1)   return 'just now'
+  if (mins < 60)  return `${mins}m ago`
+  if (hours < 24) return `${hours}h ago`
+  if (days < 7)   return `${days}d ago`
+  return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
 export default function NotificationsPage() {
-  const [notifs, setNotifs] = useState<Notif[]>(INITIAL)
-  const [filter, setFilter] = useState<'all' | 'unread'>('all')
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [loading,       setLoading]       = useState(true)
+  const [refreshing,    setRefreshing]    = useState(false)
 
-  const unreadCount = notifs.filter(n => !n.read).length
-
-  function markAllRead() {
-    setNotifs(n => n.map(x => ({ ...x, read: true })))
+  async function load(showRefresh = false) {
+    if (showRefresh) setRefreshing(true)
+    else setLoading(true)
+    try {
+      const res  = await fetch('/api/notifications')
+      const data = await res.json()
+      setNotifications(data.notifications ?? [])
+    } catch {}
+    setLoading(false)
+    setRefreshing(false)
   }
 
-  function dismiss(id: string) {
-    setNotifs(n => n.filter(x => x.id !== id))
-  }
+  useEffect(() => { load() }, [])
 
-  function markRead(id: string) {
-    setNotifs(n => n.map(x => x.id === id ? { ...x, read: true } : x))
-  }
-
-  const filtered = notifs.filter(n => filter === 'all' || !n.read)
+  const grouped = notifications.reduce<Record<string, Notification[]>>((acc, n) => {
+    const date = new Date(n.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    if (!acc[date]) acc[date] = []
+    acc[date].push(n)
+    return acc
+  }, {})
 
   return (
     <div className="space-y-5 max-w-2xl">
 
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold text-gray-900">Notifications</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'}
+          <h2 className="font-display font-bold text-xl text-brand-ink">Notifications</h2>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {notifications.length > 0 ? `${notifications.length} updates across your orders` : 'All caught up'}
           </p>
         </div>
-        {unreadCount > 0 && (
-          <button
-            onClick={markAllRead}
-            className="flex items-center gap-1.5 text-xs font-semibold text-brand-teal hover:text-brand-teal2 transition-colors"
-          >
-            <CheckCheck size={14} />
-            Mark all read
-          </button>
-        )}
+        <button onClick={() => load(true)} disabled={refreshing}
+          className="p-2 rounded-xl text-gray-400 hover:text-brand-teal hover:bg-brand-surface transition-all disabled:opacity-50">
+          <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+        </button>
       </div>
 
-      {/* Filter toggle */}
-      <div className="flex gap-1.5 bg-white border border-gray-100 rounded-xl p-1 shadow-sm w-fit">
-        {(['all', 'unread'] as const).map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all
-              ${filter === f
-                ? 'bg-brand-teal text-white shadow-sm'
-                : 'text-gray-500 hover:text-brand-teal'
-              }`}
-          >
-            {f}
-            {f === 'unread' && unreadCount > 0 && (
-              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold
-                ${filter === 'unread' ? 'bg-white/20 text-white' : 'bg-brand-amber text-white'}`}>
-                {unreadCount}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Notifications list */}
-      <div className="space-y-2">
-        {filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 py-16 text-center">
-            <Bell size={32} className="text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm font-medium">No unread notifications</p>
-            <p className="text-gray-400 text-xs mt-1">You're all caught up.</p>
-          </div>
-        ) : (
-          filtered.map(notif => {
-            const cfg  = TYPE_CFG[notif.type]
-            const Icon = cfg.icon
-            return (
-              <div
-                key={notif.id}
-                onClick={() => markRead(notif.id)}
-                className={`relative flex gap-4 px-5 py-4 rounded-2xl border transition-all cursor-pointer group
-                  ${notif.read
-                    ? 'bg-white border-gray-100 hover:border-gray-200'
-                    : 'bg-white border-brand-teal/20 shadow-sm shadow-brand-teal/5 hover:border-brand-teal/30'
-                  }`}
-              >
-                {/* Unread dot */}
-                {!notif.read && (
-                  <span className="absolute top-4 left-1.5 w-1.5 h-1.5 rounded-full bg-brand-teal" />
-                )}
-
-                {/* Icon */}
-                <div className={`w-10 h-10 rounded-xl ${cfg.bg} flex items-center justify-center flex-shrink-0`}>
-                  <Icon size={18} className={cfg.color} />
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold leading-snug ${notif.read ? 'text-gray-700' : 'text-gray-900'}`}>
-                    {notif.title}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">{notif.body}</p>
-                  <p className="text-[11px] text-gray-400 mt-1.5">{notif.time}</p>
-                </div>
-
-                {/* Dismiss */}
-                <button
-                  onClick={e => { e.stopPropagation(); dismiss(notif.id) }}
-                  className="flex-shrink-0 p-1 rounded-lg text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-all opacity-0 group-hover:opacity-100 self-start mt-0.5"
-                >
-                  <X size={14} />
-                </button>
+      {loading ? (
+        <div className="space-y-3">
+          {[1,2,3,4,5].map(i => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse flex gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gray-100 flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 bg-gray-100 rounded w-3/4" />
+                <div className="h-3 bg-gray-100 rounded w-1/2" />
               </div>
-            )
-          })
-        )}
-      </div>
+            </div>
+          ))}
+        </div>
+      ) : notifications.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-16 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center mx-auto mb-4">
+            <Bell size={24} className="text-gray-300" />
+          </div>
+          <p className="font-semibold text-gray-600 mb-1">No notifications yet</p>
+          <p className="text-sm text-gray-400 mb-5">
+            Order updates, payment confirmations, and CA messages will appear here.
+          </p>
+          <Link href="/services"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-teal text-white text-sm font-semibold rounded-xl hover:bg-brand-teal2 transition-all">
+            Browse Services <ArrowRight size={14} />
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {Object.entries(grouped).map(([date, items]) => (
+            <div key={date}>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2.5 px-1">{date}</p>
+              <div className="space-y-2">
+                {items.map(n => {
+                  const cfg  = TYPE_CONFIG[n.type] ?? TYPE_CONFIG.info
+                  const Icon = cfg.icon
+                  return (
+                    <Link key={n.id} href={`/dashboard/orders`}
+                      className="flex items-start gap-3 bg-white rounded-2xl border border-gray-100 p-4 hover:border-brand-teal/30 hover:shadow-sm transition-all group">
+
+                      <div className={`w-10 h-10 rounded-xl ${cfg.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                        <Icon size={17} className={cfg.color} />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${cfg.bg} ${cfg.color}`}>
+                            {cfg.label}
+                          </span>
+                          <span className="text-[11px] text-gray-400 truncate">{n.serviceName}</span>
+                          <span className="text-[10px] text-gray-300 font-mono ml-auto flex-shrink-0">{n.orderNumber}</span>
+                        </div>
+                        <p className="text-sm text-gray-700 leading-relaxed">{n.message}</p>
+                        <p className="text-[11px] text-gray-400 mt-1">{timeAgo(n.createdAt)}</p>
+                      </div>
+
+                      <ArrowRight size={14} className="text-gray-200 group-hover:text-brand-teal flex-shrink-0 mt-3 group-hover:translate-x-0.5 transition-all" />
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
