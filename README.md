@@ -112,8 +112,8 @@ Uncomment the relevant block in `app/api/auth/send-otp/route.ts` and `verify-otp
 
 ```env
 NEXT_PUBLIC_RAZORPAY_KEY=rzp_live_xxxx
-NEXT_PUBLIC_WA_NUMBER=918000000000
-NEXT_PUBLIC_TOLL_FREE=18001234567
+NEXT_PUBLIC_WA_NUMBER=919664850011
+NEXT_PUBLIC_TOLL_FREE=9664850011
 NEXT_PUBLIC_SITE_URL=https://jansamaadhan.in
 ```
 

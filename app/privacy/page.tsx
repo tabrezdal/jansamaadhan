@@ -183,7 +183,7 @@ export default function PrivacyPolicyPage() {
         </p>
         <p>
           <strong>Email:</strong> privacy@jansamaadhan.in<br />
-          <strong>WhatsApp / Phone:</strong> 1800-XXX-XXXX (toll-free, Mon–Sat, 9 AM–7 PM)<br />
+          <strong>WhatsApp / Phone:</strong> +91-9664850011 (toll-free, Mon–Sat, 9 AM–7 PM)<br />
           <strong>Registered office:</strong> JanSamaadhan Technologies Pvt. Ltd., Ahmedabad, Gujarat, India.
         </p>
       </section>

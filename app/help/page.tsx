@@ -126,7 +126,7 @@ export default function HelpPage() {
             <p className="font-semibold text-brand-ink mb-1">Still need help?</p>
             <p className="text-sm text-gray-500 mb-5">Our support team replies within 4 hours on WhatsApp.</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <a href="https://wa.me/918000000000" className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-green-500 text-white text-sm font-semibold hover:bg-green-600 transition-colors shadow-sm">
+              <a href="https://wa.me/919664850011" className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-green-500 text-white text-sm font-semibold hover:bg-green-600 transition-colors shadow-sm">
                 <MessageCircle size={15} /> Chat on WhatsApp
               </a>
               <a href="/contact" className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:border-brand-teal hover:text-brand-teal transition-colors">

@@ -239,7 +239,7 @@ export default async function DashboardPage() {
             <div className="text-xs text-gray-400">Our team replies in under 4 hours.</div>
           </div>
         </div>
-        <a href="https://wa.me/918000000000"
+        <a href="https://wa.me/919664850011"
           className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-green-500 text-white text-xs font-semibold rounded-xl hover:bg-green-600 transition-all">
           Chat on WhatsApp
         </a>

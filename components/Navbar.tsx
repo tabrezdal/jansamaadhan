@@ -112,9 +112,9 @@ export default function Navbar() {
 
           {/* Desktop CTA */}
           <div className="hidden lg:flex items-center gap-3">
-            <a href="tel:+918000000000" className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-brand-teal transition-colors">
+            <a href="tel:+919664850011" className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-brand-teal transition-colors">
               <Phone size={14} />
-              <span>1800-XXX-XXXX</span>
+              <span>+91-9664850011</span>
             </a>
             <Link href="/login" className="px-4 py-2 text-sm font-medium text-brand-teal border border-brand-teal/30 rounded-xl hover:bg-brand-surface transition-colors">
               Login

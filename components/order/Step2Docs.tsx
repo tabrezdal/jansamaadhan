@@ -338,7 +338,7 @@ export default function Step2Docs({ service, order, onUpdate, onNext, onBack }: 
             </div>
           </div>
           <a
-            href="https://wa.me/918000000000"
+            href="https://wa.me/919664850011"
             target="_blank"
             rel="noreferrer"
             className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-green-500 text-white text-xs font-semibold rounded-xl hover:bg-green-600 transition-colors"

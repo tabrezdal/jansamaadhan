@@ -200,7 +200,7 @@ export default function TermsPage() {
         <h2>15. Contact Us</h2>
         <p>
           For questions about these Terms, contact us at <strong>legal@jansamaadhan.in</strong> or
-          1800-XXX-XXXX (toll-free, Mon–Sat, 9 AM–7 PM).
+          +91-9664850011 (toll-free, Mon–Sat, 9 AM–7 PM).
         </p>
       </section>
 

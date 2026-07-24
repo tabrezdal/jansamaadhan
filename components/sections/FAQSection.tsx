@@ -88,11 +88,11 @@ export default function FAQSection() {
         <div className="mt-10 text-center">
           <p className="text-gray-500 text-sm mb-3">Aur koi sawaal hai?</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a href="https://wa.me/918000000000" className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-green-500 text-white text-sm font-semibold hover:bg-green-600 transition-colors shadow-sm">
+            <a href="https://wa.me/919664850011" className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-green-500 text-white text-sm font-semibold hover:bg-green-600 transition-colors shadow-sm">
               <span>💬</span> WhatsApp pe poochho
             </a>
-            <a href="tel:18001234567" className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:border-brand-teal hover:text-brand-teal transition-colors">
-              📞 Call 1800-XXX-XXXX
+            <a href="tel:9664850011" className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:border-brand-teal hover:text-brand-teal transition-colors">
+              📞 Call +91-9664850011
             </a>
           </div>
         </div>

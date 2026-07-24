@@ -357,7 +357,7 @@ export default function ServicesPage() {
               <Zap size={20} className="text-brand-amber mx-auto mb-3" />
               <h3 className="font-display font-bold text-xl text-white mb-2">Don't see what you need?</h3>
               <p className="text-white/70 text-sm mb-5">Tell us — we add new services every month based on user requests.</p>
-              <a href="https://wa.me/918000000000"
+              <a href="https://wa.me/919664850011"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-brand-amber text-white font-semibold text-sm rounded-xl hover:bg-brand-amber2 transition-all shadow-md">
                 💬 Request a service on WhatsApp
               </a>

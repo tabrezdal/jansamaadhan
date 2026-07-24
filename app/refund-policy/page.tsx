@@ -75,7 +75,7 @@ export default function RefundPolicyPage() {
         <ul>
           <li>Open the order in <strong>My Orders</strong> from your dashboard and tap <strong>"Request Refund"</strong>, or</li>
           <li>Message us on WhatsApp with your Order ID, or</li>
-          <li>Email support@jansamaadhan.in with your Order ID.</li>
+          <li>Email dalworld.inc@gmail.com with your Order ID.</li>
         </ul>
         <p>Our support team verifies the SLA breach against your order timestamp and processes eligible refunds automatically — typically without requiring further documentation from you.</p>
       </section>
@@ -143,8 +143,8 @@ export default function RefundPolicyPage() {
       <section id="contact-refund">
         <h2>10. Contact Us</h2>
         <p>
-          <strong>Email:</strong> support@jansamaadhan.in<br />
-          <strong>WhatsApp / Phone:</strong> 1800-XXX-XXXX (toll-free, Mon–Sat, 9 AM–7 PM)
+          <strong>Email:</strong> dalworld.inc@gmail.com<br />
+          <strong>WhatsApp / Phone:</strong> +91-9664850011 (toll-free, Mon–Sat, 9 AM–7 PM)
         </p>
       </section>
 
